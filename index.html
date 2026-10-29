@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NJS Public School - Notice Board</title>
+
+  <!-- ========================================================================= -->
+  <!-- SPEC 1: FIREBASE v10 COMPAT CDN SCRIPTS                                   -->
+  <!-- ========================================================================= -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+
+  <style>
+    /* Clean, modern styling matching NJS Public School's theme */
+    :root {
+      --primary: #0f172a;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --danger: #ef4444;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --muted: #64748b;
+      --radius: 14px;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* AI Assistant Holiday Status Banner */
+    .ai-banner {
+      background: #ffffff;
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      border-left: 6px solid var(--emerald);
+      box-shadow: 0 4px 14px rgba(0,0,0,0.04);
+      transition: all 0.3s ease;
+    }
+    .ai-banner.holiday-active {
+      border-left-color: var(--amber);
+      background: #fffdf2;
+    }
+    .ai-status-text {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .ai-sub-text {
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    /* Admin Form Card */
+    .admin-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+    }
+    .form-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    .form-group.full {
+      grid-column: 1 / -1;
+    }
+    label {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+    }
+    input, select, textarea {
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      background: #f8fafc;
+    }
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--emerald);
+      background: #fff;
+    }
+    .password-field {
+      border: 2px solid var(--amber);
+      background: #fffbeb;
+    }
+    .error-msg {
+      color: var(--danger);
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: none;
+    }
+    .btn-submit {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 20px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-submit:hover {
+      background: #1e293b;
+    }
+
+    /* Notice Board Container */
+    .notice-card {
+      background: var(--card);
+      border-radius: var(--radius);
+      padding: 22px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.03);
+    }
+    .notice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .notice-item {
+      padding: 16px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-left: 5px solid #3b82f6;
+    }
+    .notice-item.cat-holiday, .notice-item.cat-leave {
+      border-left-color: var(--amber);
+      background: #fffdf5;
+    }
+    .notice-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .notice-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .badge {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 20px;
+      text-transform: uppercase;
+    }
+    .badge-cat {
+      background: #e2e8f0;
+      color: #334155;
+    }
+    .notice-item.cat-holiday .badge-cat, .notice-item.cat-leave .badge-cat {
+      background: #fef3c7;
+      color: #b45309;
+    }
+    .badge-date {
+      background: #e0f2fe;
+      color: #0369a1;
+    }
+    .notice-details {
+      font-size: 0.9rem;
+      color: #334155;
+      white-space: pre-line;
+    }
+    .notice-time {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 8px;
+      text-align: right;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 28px;
+      color: var(--muted);
+      background: #f8fafc;
+      border-radius: 10px;
+      border: 1px dashed #cbd5e1;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- SPEC 4: AI ASSISTANT HOLIDAY RULE DISPLAY -->
+    <div id="aiHolidayStatusContainer" class="ai-banner">
+      <div style="font-size: 0.75rem; font-weight: 700; color: #059669; text-transform: uppercase;">
+        🤖 AI Assistant • Verification
+      </div>
+      <div id="aiHolidayStatus" class="ai-status-text">
+        School is OPEN (स्कूल खुला है)!
+      </div>
+      <p id="aiHolidaySubText" class="ai-sub-text">
+        Verified with administration records. All regular classes are in session.
+      </p>
+    </div>
+
+    <!-- SPEC 2: ADMIN NOTICE PUBLISHER FORM -->
+    <section class="admin-card">
+      <h2 style="font-size: 1.15rem; margin-bottom: 14px;">🔒 Admin Notice Publisher</h2>
+      <form id="noticePublishForm" onsubmit="handlePublishNotice(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="noticeTitle">Notice Title (शीर्षक) *</label>
+            <input type="text" id="noticeTitle" placeholder="e.g. Autumn Break Announcement" required />
+          </div>
+
+          <div class="form-group">
+            <label for="noticeCategory">Category (श्रेणी) *</label>
+            <select id="noticeCategory" required>
+              <option value="General">General</option>
+              <option value="Holiday">Holiday (अवकाश)</option>
+              <option value="Leave">Leave (छुट्टी)</option>
+              <option value="Exam">Exam (परीक्षा)</option>
+              <option value="Event">Event (आयोजन)</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="noticeDate">Effective Date (दिनांक) *</label>
+            <input type="text" id="noticeDate" placeholder="e.g. Tomorrow / कल" required />
+          </div>
+
+          <div class="form-group">
+            <label for="adminPassword">Password (पासवर्ड) *</label>
+            <input type="password" id="adminPassword" class="password-field" placeholder="Enter 'gahlaut'" required />
+          </div>
+
+          <div class="form-group full">
+            <label for="noticeDetails">Notice Details (विवरण) *</label>
+            <textarea id="noticeDetails" rows="3" placeholder="Enter circular details for parents and students..." required></textarea>
+          </div>
+        </div>
+
+        <div id="passwordError" class="error-msg">
+          ❌ गलत पासवर्ड! कृपया सही एडमिन पासवर्ड दर्ज करें।
+        </div>
+
+        <button type="submit" class="btn-submit">📢 Publish Notification</button>
+      </form>
+    </section>
+
+    <!-- SPEC 3: DYNAMIC REAL-TIME NOTICE BOARD -->
+    <section class="notice-card">
+      <h2 style="font-size: 1.15rem; margin-bottom: 6px;">📜 School Circulars & Notifications</h2>
+      <!-- Real-time notices injected here -->
+      <div id="noticeBoardDisplay" class="notice-list">
+        <div class="empty-state">Loading notices from Firebase...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ========================================================================= -->
+  <!-- JAVASCRIPT LOGIC                                                          -->
+  <!-- ========================================================================= -->
+  <script>
+    // -------------------------------------------------------------------------
+    // 1. FIREBASE INITIALIZATION
+    // Replace with your Firebase Console Project credentials
+    // -------------------------------------------------------------------------
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      databaseURL: "https://YOUR_PROJECT_ID-default-rtdb.firebaseio.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+    }
+    const database = firebase.database();
+    const noticesRef = database.ref('notices');
+
+    // -------------------------------------------------------------------------
+    // 2. ADMIN AUTHENTICATION & NOTICE PUBLISHING
+    // -------------------------------------------------------------------------
+    function handlePublishNotice(event) {
+      event.preventDefault();
+
+      const title = document.getElementById('noticeTitle').value.trim();
+      const category = document.getElementById('noticeCategory').value;
+      const date = document.getElementById('noticeDate').value.trim();
+      const details = document.getElementById('noticeDetails').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
+      const errorEl = document.getElementById('passwordError');
+
+      // Password Validation: Must be exactly "gahlaut"
+      if (password !== "gahlaut") {
+        errorEl.style.display = "block";
+        errorEl.textContent = "❌ गलत पासवर्ड! कृपया सही एडमिन पासवर्ड दर्ज करें।";
+        document.getElementById('adminPassword').focus();
+        return;
+      }
+
+      errorEl.style.display = "none";
+
+      const newNotice = {
+        title: title,
+        category: category,
+        date: date,
+        details: details,
+        timestamp: Date.now()
+      };
+
+      // Push to "/notices" path
+      noticesRef.push(newNotice)
+        .then(() => {
+          alert(`✅ नोटिफिकेशन सफलतापूर्वक प्रकाशित हुआ: "${title}"`);
+          document.getElementById('noticePublishForm').reset();
+        })
+        .catch((err) => {
+          console.error("Firebase write error:", err);
+          alert("Firebase Error: " + err.message);
+        });
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. DYNAMIC NOTICE BOARD LISTENER (.on('value', ...))
+    // -------------------------------------------------------------------------
+    noticesRef.on('value', (snapshot) => {
+      const container = document.getElementById('noticeBoardDisplay');
+      const data = snapshot.val();
+
+      if (!data) {
+        container.innerHTML = `
+          <div class="empty-state">
+            📢 कोई सक्रिय सर्कुलर नहीं है। स्कूल खुला है।<br>
+            <span style="font-size: 0.8rem; color: #94a3b8;">(No active notices. School is OPEN)</span>
+          </div>
+        `;
+        updateAiHolidayStatus(false);
+        return;
+      }
+
+      // Convert object snapshot to an array
+      const noticesArray = [];
+      Object.keys(data).forEach((key) => {
+        noticesArray.push({ id: key, ...data[key] });
+      });
+
+      // Reverse so newest notice is on top
+      noticesArray.reverse();
+
+      // Render cards
+      let html = '';
+      noticesArray.forEach((notice) => {
+        const catClass = (notice.category || '').toLowerCase();
+        const timeStr = notice.timestamp 
+          ? new Date(notice.timestamp).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+          : '';
+
+        html += `
+          <article class="notice-item cat-${catClass}">
+            <div class="notice-header">
+              <h3 class="notice-title">${escapeHtml(notice.title)}</h3>
+              <div>
+                <span class="badge badge-cat">${escapeHtml(notice.category)}</span>
+                <span class="badge badge-date">📅 ${escapeHtml(notice.date)}</span>
+              </div>
+            </div>
+            <div class="notice-details">${escapeHtml(notice.details)}</div>
+            ${timeStr ? `<div class="notice-time">Published: ${timeStr}</div>` : ''}
+          </article>
+        `;
+      });
+
+      container.innerHTML = html;
+
+      // -----------------------------------------------------------------------
+      // 4. AI ASSISTANT HOLIDAY RULE LOGIC
+      // -----------------------------------------------------------------------
+      const activeHolidayNotice = noticesArray.find((n) => {
+        const cat = (n.category || '').toLowerCase();
+        const text = ((n.title || '') + ' ' + (n.details || '')).toLowerCase();
+        return (
+          cat === 'holiday' || 
+          cat === 'leave' || 
+          text.includes('holiday') || 
+          text.includes('chutti') || 
+          text.includes('अवकाश')
+        );
+      });
+
+      updateAiHolidayStatus(Boolean(activeHolidayNotice), activeHolidayNotice);
+    });
+
+    // Helper: Update AI Holiday Banner
+    function updateAiHolidayStatus(isHolidayActive, holidayNotice) {
+      const banner = document.getElementById('aiHolidayStatusContainer');
+      const statusText = document.getElementById('aiHolidayStatus');
+      const subText = document.getElementById('aiHolidaySubText');
+
+      if (isHolidayActive && holidayNotice) {
+        banner.classList.add('holiday-active');
+        statusText.innerHTML = `⚠️ Holiday Declared: ${escapeHtml(holidayNotice.title)} (${escapeHtml(holidayNotice.date)})`;
+        subText.textContent = `School is CLOSED as per official circular: "${holidayNotice.title}". (स्कूल में अवकाश घोषित है)`;
+      } else {
+        banner.classList.remove('holiday-active');
+        statusText.innerHTML = `School is OPEN (स्कूल खुला है)!`;
+        subText.textContent = `No active holiday declared in administration circulars. Regular classes are in session.`;
+      }
+    }
+
+    // Helper: XSS sanitizer
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+  </script>
+</body>
+</html>
